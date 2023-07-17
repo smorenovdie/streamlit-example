@@ -1,38 +1,86 @@
-from collections import namedtuple
-import altair as alt
-import math
-import pandas as pd
 import streamlit as st
+import pandas as pd
+import shap
+import matplotlib.pyplot as plt
+from sklearn import datasets
+from sklearn.ensemble import RandomForestRegressor
 
-"""
-# Welcome to Streamlit!
+st.write("""
+# Boston House Price Prediction App
 
-Edit `/streamlit_app.py` to customize this app to your heart's desire :heart:
+This app predicts the **Boston House Price**!
+""")
+st.write('---')
 
-If you have any questions, checkout our [documentation](https://docs.streamlit.io) and [community
-forums](https://discuss.streamlit.io).
+# Loads the Boston House Price Dataset
+boston = datasets.load_boston()
+X = pd.DataFrame(boston.data, columns=boston.feature_names)
+Y = pd.DataFrame(boston.target, columns=["MEDV"])
 
-In the meantime, below is an example of what you can do with just a few lines of code:
-"""
+# Sidebar
+# Header of Specify Input Parameters
+st.sidebar.header('Specify Input Parameters')
 
+def user_input_features():
+    CRIM = st.sidebar.slider('CRIM', X.CRIM.min(), X.CRIM.max(), X.CRIM.mean())
+    ZN = st.sidebar.slider('ZN', X.ZN.min(), X.ZN.max(), X.ZN.mean())
+    INDUS = st.sidebar.slider('INDUS', X.INDUS.min(), X.INDUS.max(), X.INDUS.mean())
+    CHAS = st.sidebar.slider('CHAS', X.CHAS.min(), X.CHAS.max(), X.CHAS.mean())
+    NOX = st.sidebar.slider('NOX', X.NOX.min(), X.NOX.max(), X.NOX.mean())
+    RM = st.sidebar.slider('RM', X.RM.min(), X.RM.max(), X.RM.mean())
+    AGE = st.sidebar.slider('AGE', X.AGE.min(), X.AGE.max(), X.AGE.mean())
+    DIS = st.sidebar.slider('DIS', X.DIS.min(), X.DIS.max(), X.DIS.mean())
+    RAD = st.sidebar.slider('RAD', X.RAD.min(), X.RAD.max(), X.RAD.mean())
+    TAX = st.sidebar.slider('TAX', X.TAX.min(), X.TAX.max(), X.TAX.mean())
+    PTRATIO = st.sidebar.slider('PTRATIO', X.PTRATIO.min(), X.PTRATIO.max(), X.PTRATIO.mean())
+    B = st.sidebar.slider('B', X.B.min(), X.B.max(), X.B.mean())
+    LSTAT = st.sidebar.slider('LSTAT', X.LSTAT.min(), X.LSTAT.max(), X.LSTAT.mean())
+    data = {'CRIM': CRIM,
+            'ZN': ZN,
+            'INDUS': INDUS,
+            'CHAS': CHAS,
+            'NOX': NOX,
+            'RM': RM,
+            'AGE': AGE,
+            'DIS': DIS,
+            'RAD': RAD,
+            'TAX': TAX,
+            'PTRATIO': PTRATIO,
+            'B': B,
+            'LSTAT': LSTAT}
+    features = pd.DataFrame(data, index=[0])
+    return features
 
-with st.echo(code_location='below'):
-    total_points = st.slider("Number of points in spiral", 1, 5000, 2000)
-    num_turns = st.slider("Number of turns in spiral", 1, 100, 9)
+df = user_input_features()
 
-    Point = namedtuple('Point', 'x y')
-    data = []
+# Main Panel
 
-    points_per_turn = total_points / num_turns
+# Print specified input parameters
+st.header('Specified Input parameters')
+st.write(df)
+st.write('---')
 
-    for curr_point_num in range(total_points):
-        curr_turn, i = divmod(curr_point_num, points_per_turn)
-        angle = (curr_turn + 1) * 2 * math.pi * i / points_per_turn
-        radius = curr_point_num / total_points
-        x = radius * math.cos(angle)
-        y = radius * math.sin(angle)
-        data.append(Point(x, y))
+# Build Regression Model
+model = RandomForestRegressor()
+model.fit(X, Y)
+# Apply Model to Make Prediction
+prediction = model.predict(df)
 
-    st.altair_chart(alt.Chart(pd.DataFrame(data), height=500, width=500)
-        .mark_circle(color='#0068c9', opacity=0.5)
-        .encode(x='x:Q', y='y:Q'))
+st.header('Prediction of MEDV')
+st.write(prediction)
+st.write('---')
+
+# Explaining the model's predictions using SHAP values
+# https://github.com/slundberg/shap
+explainer = shap.TreeExplainer(model)
+shap_values = explainer.shap_values(X)
+
+st.header('Feature Importance')
+plt.title('Feature importance based on SHAP values')
+shap.summary_plot(shap_values, X)
+st.pyplot(bbox_inches='tight')
+st.write('---')
+
+plt.title('Feature importance based on SHAP values (Bar)')
+shap.summary_plot(shap_values, X, plot_type="bar")
+st.pyplot(bbox_inches='tight')
